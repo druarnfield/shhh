@@ -29,6 +29,7 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&flagVerbose, "verbose", false, "Show detailed log output")
 
 	cmd.AddCommand(newVersionCmd(version))
+	cmd.AddCommand(newSetupCmd())
 
 	return cmd
 }
