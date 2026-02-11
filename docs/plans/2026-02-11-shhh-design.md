@@ -107,7 +107,7 @@ shhh/
 ├── shhh.example.toml               # Example org config
 ├── go.mod
 ├── go.sum
-├── Makefile                         # Build targets
+├── Taskfile.yml                     # Build targets (go-task)
 └── README.md
 ```
 
@@ -612,14 +612,22 @@ No effort is spent making shhh actually *work* on macOS/Linux. The build tags an
 
 ## Build & Distribution
 
-```makefile
-# Makefile
-VERSION := $(shell git describe --tags --always --dirty)
+```yaml
+# Taskfile.yml
+version: '3'
 
-build:
-	GOOS=windows GOARCH=amd64 go build \
-		-ldflags "-s -w -X main.version=$(VERSION)" \
-		-o shhh.exe ./cmd/shhh
+vars:
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+
+tasks:
+  build-windows:
+    desc: Cross-compile for Windows
+    env:
+      GOOS: windows
+      GOARCH: amd64
+    cmds:
+      - go build -ldflags "-s -w -X main.version={{.VERSION}}" -o shhh.exe ./cmd/shhh
 
 # single binary, copy to a shared network drive or attach to a wiki page
 # new hire downloads shhh.exe + shhh.toml and they're off
