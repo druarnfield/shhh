@@ -1,0 +1,65 @@
+# shhh.toml — Organisation configuration
+# Share this file with your team. New hires get the binary + this file.
+
+[org]
+name = "Health Data Services"
+
+[proxy]
+http  = "http://proxy.health.gov:8080"
+https = "http://proxy.health.gov:8080"
+no_proxy = "localhost,127.0.0.1,.health.gov,.internal"
+
+[certs]
+# "system" extracts from Windows cert store
+# can also be a URL or file path
+source = "system"
+# additional CAs to bundle (internal intermediates etc)
+extra = []
+
+[git]
+default_branch = "main"
+# auto-configure these remotes to use SSH
+ssh_hosts = ["gitlab.health.gov"]
+
+[gitlab]
+host = "gitlab.health.gov"
+ssh_port = 22
+
+[registries]
+pypi_mirror   = ""  # leave empty if not applicable
+npm_registry  = ""
+go_proxy      = ""
+
+[scoop]
+# extra scoop buckets to add
+buckets = ["extras", "versions"]
+
+[tools]
+# tools to install via scoop during setup
+core = [
+    "git", "7zip", "curl", "jq", "yq",
+    "ripgrep", "fd", "fzf", "delta",
+    "neovim",
+]
+
+# data engineering tools
+data = [
+    "sqlcmd",
+    # bcp installed via sqlcmd tools
+]
+
+# optional extras the user can pick
+optional = [
+    "dbeaver", "wezterm", "starship",
+    "lazygit", "bat", "eza", "dust", "tokei",
+]
+
+[python]
+# default python version for uv
+version = "3.12"
+
+[golang]
+version = "1.23"
+
+[node]
+version = "22"
