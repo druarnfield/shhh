@@ -54,12 +54,10 @@ func proxyStep(deps *Dependencies, key, value string) module.Step {
 	return module.Step{
 		Name:        fmt.Sprintf("Set %s", key),
 		Description: fmt.Sprintf("Configure %s environment variable", key),
-		Explain: func(_ context.Context) string {
-			return fmt.Sprintf(
-				"%s tells tools like git, curl, and pip how to reach the internet through your corporate proxy. "+
-					"We set it in both your PowerShell $PROFILE (for interactive shells) and the Windows user "+
-					"registry (for GUI apps and other shells).", key)
-		},
+		Explain: fmt.Sprintf(
+			"%s tells tools like git, curl, and pip how to reach the internet through your corporate proxy. "+
+				"We set it in both your PowerShell $PROFILE (for interactive shells) and the Windows user "+
+				"registry (for GUI apps and other shells).", key),
 		Check: func(_ context.Context) bool {
 			val, _, err := deps.Env.Get(key)
 			if err == nil && val == value {
@@ -91,9 +89,7 @@ func gitDefaultBranchStep(deps *Dependencies) module.Step {
 	return module.Step{
 		Name:        "Set git default branch",
 		Description: fmt.Sprintf("Set git init.defaultBranch to %s", branch),
-		Explain: func(_ context.Context) string {
-			return "When you run 'git init', git creates an initial branch. This sets the default name for that branch."
-		},
+		Explain: "When you run 'git init', git creates an initial branch. This sets the default name for that branch.",
 		Check: func(ctx context.Context) bool {
 			result, err := deps.Exec.Run(ctx, "git", "config", "--global", "init.defaultBranch")
 			if err != nil {
@@ -118,11 +114,9 @@ func gitSSLCAInfoStep(deps *Dependencies) module.Step {
 	return module.Step{
 		Name:        "Set git ssl.caInfo",
 		Description: "Point git at the shhh CA bundle",
-		Explain: func(_ context.Context) string {
-			return "Corporate networks often use TLS-intercepting proxies with custom CA certificates. " +
-				"Git needs to know where to find these certificates to verify HTTPS connections. " +
-				"We point git at the shhh-managed CA bundle that includes your organization's CAs."
-		},
+		Explain: "Corporate networks often use TLS-intercepting proxies with custom CA certificates. " +
+			"Git needs to know where to find these certificates to verify HTTPS connections. " +
+			"We point git at the shhh-managed CA bundle that includes your organization's CAs.",
 		Check: func(ctx context.Context) bool {
 			result, err := deps.Exec.Run(ctx, "git", "config", "--global", "http.sslCAInfo")
 			if err != nil {

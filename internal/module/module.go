@@ -38,9 +38,9 @@ type Step struct {
 	// Description explains what this step does.
 	Description string
 
-	// Explain returns a human-readable description of what Run would do,
-	// without performing any changes.
-	Explain func(ctx context.Context) string
+	// Explain is teaching text shown to the user explaining why this step
+	// matters and what it does.
+	Explain string
 
 	// Check returns true if the step is already satisfied (i.e. Run can be skipped).
 	Check func(ctx context.Context) bool
