@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/druarnfield/shhh/internal/config"
 	"github.com/druarnfield/shhh/internal/exec"
 	"github.com/druarnfield/shhh/internal/logging"
@@ -15,6 +16,7 @@ import (
 	"github.com/druarnfield/shhh/internal/module/setup"
 	"github.com/druarnfield/shhh/internal/platform"
 	"github.com/druarnfield/shhh/internal/state"
+	"github.com/druarnfield/shhh/internal/tui/wizard"
 	"github.com/spf13/cobra"
 )
 
@@ -33,13 +35,15 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadFromFile(cfgPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			fmt.Println("No config file found, using defaults.")
-			fmt.Printf("Create %s to customize.\n\n", cfgPath)
+			if flagQuiet || !isTerminal() {
+				fmt.Println("No config file found, using defaults.")
+				fmt.Printf("Create %s to customize.\n\n", cfgPath)
+			}
 			cfg = config.Defaults()
 		} else {
 			return fmt.Errorf("loading config: %w", err)
 		}
-	} else {
+	} else if flagQuiet || !isTerminal() {
 		fmt.Printf("Config: %s\n", cfgPath)
 		if cfg.Org.Name != "" {
 			fmt.Printf("Org:    %s\n", cfg.Org.Name)
@@ -76,7 +80,20 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	reg := module.NewRegistry()
 	reg.Register(setup.NewBaseModule(deps))
 
-	// Determine which modules to run
+	// Create runner
+	runner := module.NewRunner(logger, flagDryRun)
+
+	if flagQuiet || !isTerminal() {
+		return runSetupCLI(runner, reg, st, logger, args)
+	}
+
+	return runSetupTUI(runner, reg, st, logger, args)
+}
+
+// runSetupCLI runs the existing text-based output path.
+func runSetupCLI(runner *module.Runner, reg *module.Registry, st *state.State, logger *slog.Logger, args []string) error {
+	runner.SetCallback(cliStepCallback)
+
 	moduleIDs := args
 	if len(moduleIDs) == 0 {
 		for _, m := range reg.All() {
@@ -84,24 +101,60 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Create runner
-	runner := module.NewRunner(logger, flagDryRun)
-	runner.SetCallback(cliStepCallback)
-
 	if flagDryRun {
 		fmt.Println("=== DRY RUN ===")
 		fmt.Println()
 	}
 
-	// Run modules
 	ctx := context.Background()
 	results, err := runner.RunModules(ctx, reg, moduleIDs)
 
-	// Print summary
 	fmt.Println()
 	printSummary(results)
 
-	// Save state
+	saveState(st, results, logger)
+
+	if err != nil {
+		fmt.Println()
+		fmt.Println("Setup failed. Fix the issue and re-run — completed steps will be skipped.")
+		return err
+	}
+
+	return nil
+}
+
+// runSetupTUI launches the Bubble Tea wizard.
+func runSetupTUI(runner *module.Runner, reg *module.Registry, st *state.State, logger *slog.Logger, _ []string) error {
+	model := wizard.New(reg, runner, flagExplain, flagDryRun)
+
+	p := tea.NewProgram(model, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("TUI error: %w", err)
+	}
+
+	// Extract results from final model and save state.
+	if wm, ok := finalModel.(wizard.WizardModel); ok {
+		results := wm.Results()
+		if len(results) > 0 {
+			saveState(st, results, logger)
+		}
+
+		if wm.RunError() != nil {
+			return wm.RunError()
+		}
+		for _, r := range results {
+			if r.Err != nil {
+				return r.Err
+			}
+		}
+	}
+
+	return nil
+}
+
+// saveState persists run results to the state file.
+func saveState(st *state.State, results []module.ModuleResult, logger *slog.Logger) {
 	st.LastRun = time.Now()
 	for _, r := range results {
 		if r.Err == nil {
@@ -111,14 +164,15 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if saveErr := state.Save(config.StateFilePath(), st); saveErr != nil {
 		logger.Error("failed to save state", "error", saveErr)
 	}
+}
 
+// isTerminal checks if stdout is a terminal (not piped).
+func isTerminal() bool {
+	fi, err := os.Stdout.Stat()
 	if err != nil {
-		fmt.Println()
-		fmt.Println("Setup failed. Fix the issue and re-run — completed steps will be skipped.")
-		return err
+		return false
 	}
-
-	return nil
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func cliStepCallback(mod *module.Module, step *module.Step, index int, total int, skipped bool, err error) {

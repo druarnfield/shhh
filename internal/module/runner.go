@@ -38,11 +38,15 @@ type ModuleResult struct {
 // or failed). It allows the caller to display progress, update a UI, etc.
 type StepCallback func(module *Module, step *Step, index int, total int, skipped bool, err error)
 
+// PreStepCallback is invoked before each step begins processing.
+type PreStepCallback func(module *Module, step *Step, index int, total int)
+
 // Runner executes module steps with check-before-run semantics.
 type Runner struct {
-	logger   *slog.Logger
-	dryRun   bool
-	callback StepCallback
+	logger      *slog.Logger
+	dryRun      bool
+	callback    StepCallback
+	preCallback PreStepCallback
 }
 
 // NewRunner creates a Runner. When dryRun is true, steps are not executed;
@@ -60,6 +64,12 @@ func (r *Runner) SetCallback(cb StepCallback) {
 	r.callback = cb
 }
 
+// SetPreStepCallback registers a callback that is invoked before each step
+// begins processing. Pass nil to clear.
+func (r *Runner) SetPreStepCallback(cb PreStepCallback) {
+	r.preCallback = cb
+}
+
 // RunModule executes every step in the given module sequentially. For each
 // step:
 //   - If Check returns true the step is skipped.
@@ -74,6 +84,10 @@ func (r *Runner) RunModule(ctx context.Context, mod *Module) ModuleResult {
 
 	for i := range mod.Steps {
 		step := &mod.Steps[i]
+
+		if r.preCallback != nil {
+			r.preCallback(mod, step, i, result.Total)
+		}
 
 		// Check precondition -- skip if already satisfied.
 		if step.Check != nil && step.Check(ctx) {
