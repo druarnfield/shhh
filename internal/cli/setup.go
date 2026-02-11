@@ -69,16 +69,21 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	// Build dependencies
 	deps := &setup.Dependencies{
-		Config:  cfg,
-		Env:     env,
-		Profile: prof,
-		Exec:    &exec.DefaultRunner{},
-		State:   st,
+		Config:    cfg,
+		Env:       env,
+		Profile:   prof,
+		CertStore: platform.NewCertStore(),
+		Exec:      &exec.DefaultRunner{},
+		State:     st,
 	}
 
 	// Build module registry
 	reg := module.NewRegistry()
 	reg.Register(setup.NewBaseModule(deps))
+	reg.Register(setup.NewGolangModule(deps))
+	reg.Register(setup.NewPythonModule(deps))
+	reg.Register(setup.NewNodeModule(deps))
+	reg.Register(setup.NewToolsModule(deps))
 
 	// Create runner
 	runner := module.NewRunner(logger, flagDryRun)

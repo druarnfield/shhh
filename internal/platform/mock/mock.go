@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"crypto/x509"
 	"fmt"
 	"strings"
 
@@ -146,4 +147,20 @@ func (pm *ProfileManager) AppendToManagedBlock(line string) error {
 
 func (pm *ProfileManager) Diff() (string, error) {
 	return "", nil
+}
+
+// ---------------------------------------------------------------------------
+// CertStore — in-memory implementation of platform.CertStore
+// ---------------------------------------------------------------------------
+
+type CertStore struct {
+	Certs []*x509.Certificate
+}
+
+func NewCertStore(certs []*x509.Certificate) platform.CertStore {
+	return &CertStore{Certs: certs}
+}
+
+func (c *CertStore) SystemRoots() ([]*x509.Certificate, error) {
+	return c.Certs, nil
 }
