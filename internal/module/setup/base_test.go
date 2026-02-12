@@ -117,7 +117,7 @@ func TestBaseModule_HasRequiredSteps(t *testing.T) {
 		stepNames[s.Name] = true
 	}
 
-	required := []string{"Set HTTP_PROXY", "Set HTTPS_PROXY", "Set NO_PROXY", "Build CA bundle", "Install Scoop", "Add Scoop buckets"}
+	required := []string{"Set HTTP_PROXY", "Set HTTPS_PROXY", "Set NO_PROXY", "Build CA bundle", "Install Scoop", "Install git", "Add Scoop buckets"}
 	for _, name := range required {
 		if !stepNames[name] {
 			t.Errorf("missing required step: %q", name)
@@ -405,6 +405,49 @@ func TestInstallScoopStep_DryRun(t *testing.T) {
 	deps := testDeps()
 	ctx := context.Background()
 	step := installScoopStep(deps)
+	msg := step.DryRun(ctx)
+	if msg == "" {
+		t.Error("DryRun returned empty string")
+	}
+}
+
+func TestInstallGitStep_Check(t *testing.T) {
+	deps := testDeps()
+	ctx := context.Background()
+
+	step := installGitStep(deps)
+	if step.Check(ctx) {
+		t.Error("Check should return false when git is not installed")
+	}
+
+	mockExec := deps.Exec.(*exec.MockRunner)
+	mockExec.Results["git --version"] = exec.Result{Stdout: "git version 2.47.0.windows.2\n", ExitCode: 0}
+	if !step.Check(ctx) {
+		t.Error("Check should return true when git is installed")
+	}
+}
+
+func TestInstallGitStep_Run(t *testing.T) {
+	deps := testDeps()
+	deps.State = &state.State{}
+	mockExec := deps.Exec.(*exec.MockRunner)
+	mockExec.Results["scoop install git"] = exec.Result{ExitCode: 0}
+	ctx := context.Background()
+
+	step := installGitStep(deps)
+	if err := step.Run(ctx); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if len(deps.State.ScoopPackages) == 0 || deps.State.ScoopPackages[0] != "git" {
+		t.Error("expected 'git' in scoop packages")
+	}
+}
+
+func TestInstallGitStep_DryRun(t *testing.T) {
+	deps := testDeps()
+	ctx := context.Background()
+	step := installGitStep(deps)
 	msg := step.DryRun(ctx)
 	if msg == "" {
 		t.Error("DryRun returned empty string")

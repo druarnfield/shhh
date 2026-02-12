@@ -253,6 +253,7 @@ func TestFullSetupFlow(t *testing.T) {
 		Results: map[string]exec.Result{
 			// Base: all already configured.
 			"scoop --version":                   {Stdout: "v0.4.1\n", ExitCode: 0},
+			"git --version":                     {Stdout: "git version 2.47.0.windows.2\n", ExitCode: 0},
 			"scoop bucket list":                 {Stdout: "extras\nversions\n", ExitCode: 0},
 			"git config --global init.defaultBranch": {Stdout: "main\n", ExitCode: 0},
 			"git config --global http.sslCAInfo":     {Stdout: config.CABundlePath() + "\n", ExitCode: 0},

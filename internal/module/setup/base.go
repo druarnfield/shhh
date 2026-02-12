@@ -45,6 +45,7 @@ func NewBaseModule(deps *Dependencies) *module.Module {
 
 	steps = append(steps, caBundleStep(deps))
 	steps = append(steps, installScoopStep(deps))
+	steps = append(steps, installGitStep(deps))
 	if len(deps.Config.Scoop.Buckets) > 0 {
 		steps = append(steps, scoopBucketsStep(deps))
 	}
@@ -261,6 +262,33 @@ func installScoopStep(deps *Dependencies) module.Step {
 		},
 		DryRun: func(_ context.Context) string {
 			return "Would install Scoop package manager via get.scoop.sh"
+		},
+	}
+}
+
+// installGitStep creates a step that installs git via Scoop. Git is required
+// early in the base module because Scoop uses it to clone bucket repositories
+// and subsequent steps configure git global settings.
+func installGitStep(deps *Dependencies) module.Step {
+	return module.Step{
+		Name:        "Install git",
+		Description: "Install git via Scoop",
+		Explain: "Git is required by Scoop to manage bucket repositories, and by almost " +
+			"every development workflow. We install it early so that all later steps " +
+			"(adding buckets, configuring git settings) can succeed.",
+		Check: func(ctx context.Context) bool {
+			_, err := deps.Exec.Run(ctx, "git", "--version")
+			return err == nil
+		},
+		Run: func(ctx context.Context) error {
+			if _, err := deps.Exec.Run(ctx, "scoop", "install", "git"); err != nil {
+				return fmt.Errorf("installing git: %w", err)
+			}
+			deps.State.AddScoopPackage("git")
+			return nil
+		},
+		DryRun: func(_ context.Context) string {
+			return "Would install git via scoop"
 		},
 	}
 }
